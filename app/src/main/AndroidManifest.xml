@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:allowBackup="false"
-        android:label="LandRadar"
+        android:icon="@mipmap/ic_launcher"\n        android:roundIcon="@mipmap/ic_launcher_round"\n        android:label="LandRadar"
         android:supportsRtl="true"
         android:theme="@style/Theme.LandRadar"
         android:usesCleartextTraffic="false">
