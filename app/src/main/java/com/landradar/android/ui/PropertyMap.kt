@@ -1,9 +1,23 @@
 package com.landradar.android.ui
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -47,10 +61,15 @@ fun PropertyMap(
         }
     }
 
-    AndroidView(
-        factory = { mapView },
-        modifier = modifier,
-        update = { map ->
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+    ) {
+        AndroidView(
+            factory = { mapView },
+            modifier = Modifier.fillMaxSize(),
+            update = { map ->
             map.overlays.clear()
             val points = properties.map { GeoPoint(it.latitude, it.longitude) }
             properties.forEach { property ->
@@ -85,9 +104,25 @@ fun PropertyMap(
                     map.invalidate()
                 }
             }
-            map.invalidate()
+                map.setMinZoomLevel(5.0)
+                map.setMaxZoomLevel(19.0)
+                map.invalidate()
+            }
+        )
+        Column(
+            modifier = Modifier.align(Alignment.CenterEnd).padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilledTonalIconButton(
+                onClick = { mapView.controller.zoomIn() },
+                modifier = Modifier.size(42.dp)
+            ) { Text("+", style = MaterialTheme.typography.titleLarge) }
+            FilledTonalIconButton(
+                onClick = { mapView.controller.zoomOut() },
+                modifier = Modifier.size(42.dp)
+            ) { Text("−", style = MaterialTheme.typography.titleLarge) }
         }
-    )
+    }
 }
 
 private fun createMarkerIcon(density: Float): BitmapDrawable {
