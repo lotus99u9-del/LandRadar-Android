@@ -93,6 +93,7 @@ private fun SignInScreen(onAuthenticated: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainScreen(onSignOut: () -> Unit) {
     val repository = remember { PreviewPropertyRepository() }
