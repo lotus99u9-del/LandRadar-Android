@@ -175,18 +175,11 @@ private fun SearchScreen(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE2EFE4)),
-                modifier = Modifier.fillMaxWidth().height(156.dp)
-            ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("⌖", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
-                        Text("แผนที่ย่อ • " + properties.size + " หมุด")
-                        Text("แตะรายการด้านล่างเพื่อดูตำแหน่ง", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
+            PropertyMap(
+                properties = properties,
+                onPropertyClick = onOpen,
+                modifier = Modifier.fillMaxWidth().height(210.dp)
+            )
             Spacer(Modifier.height(14.dp))
             Text("พบ " + properties.size + " รายการ", fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
@@ -245,17 +238,11 @@ private fun DetailScreen(
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
         item {
             TextButton(onClick = onBack) { Text("‹ กลับไปหน้าค้นหา") }
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE2EFE4)),
-                modifier = Modifier.fillMaxWidth().height(190.dp)
-            ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("⌖", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
-                        Text(property.latitude.toString() + ", " + property.longitude)
-                    }
-                }
-            }
+            PropertyMap(
+                properties = listOf(property),
+                onPropertyClick = {},
+                modifier = Modifier.fillMaxWidth().height(240.dp)
+            )
             Spacer(Modifier.height(16.dp))
             Text(property.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(property.district + ", " + property.province)
