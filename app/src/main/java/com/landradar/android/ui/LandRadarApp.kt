@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -12,141 +11,104 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.landradar.android.data.PreviewPropertyRepository
 import com.landradar.android.data.Property
 import java.text.NumberFormat
 import java.util.Locale
 
-private val LandRadarColors = lightColorScheme(
-    primary = Color(0xFF2E6B3D),
-    secondary = Color(0xFF597A60),
-    background = Color(0xFFF4F8F2),
+private val Colors = lightColorScheme(
+    primary = Color(0xFF176B3A),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFD9F2DF),
+    background = Color(0xFFF5F7F4),
     surface = Color.White
 )
 
-private enum class AuthStep { IDENTIFIER, OTP }
-private enum class MainTab(val label: String) {
-    SEARCH("ค้นหา"), SAVED("บันทึก"), ALERTS("แจ้งเตือน")
+private enum class Tab(val title: String, val icon: String) {
+    SEARCH("ค้นหา", "⌕"), SAVED("บันทึก", "★"), ALERTS("แจ้งเตือน", "●")
 }
 
 @Composable
 fun LandRadarApp() {
-    var signedIn by rememberSaveable { mutableStateOf(false) }
-    MaterialTheme(colorScheme = LandRadarColors) {
-        Surface(Modifier.fillMaxSize()) {
-            if (signedIn) MainScreen(onSignOut = { signedIn = false })
-            else SignInScreen(onAuthenticated = { signedIn = true })
-        }
-    }
-}
-
-@Composable
-private fun SignInScreen(onAuthenticated: () -> Unit) {
-    var step by rememberSaveable { mutableStateOf(AuthStep.IDENTIFIER) }
-    var identifier by rememberSaveable { mutableStateOf("") }
-    var otp by rememberSaveable { mutableStateOf("") }
-
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("LandRadar", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Text("ค้นหา บันทึก และติดตามทรัพย์ที่คุณสนใจ")
-        Spacer(Modifier.height(24.dp))
-
-        if (step == AuthStep.IDENTIFIER) {
-            OutlinedTextField(
-                value = identifier,
-                onValueChange = { identifier = it },
-                label = { Text("อีเมลหรือเบอร์โทร") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = { step = AuthStep.OTP },
-                enabled = identifier.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("ขอรหัส OTP") }
-        } else {
-            Text("กรอกรหัสที่ส่งไปยัง " + identifier)
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = otp,
-                onValueChange = { otp = it.filter(Char::isDigit).take(6) },
-                label = { Text("รหัส OTP 6 หลัก") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onAuthenticated,
-                enabled = otp.length == 6,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("ยืนยัน (โหมดตัวอย่าง)") }
-            TextButton(onClick = { step = AuthStep.IDENTIFIER; otp = "" }) {
-                Text("เปลี่ยนอีเมลหรือเบอร์โทร")
-            }
-        }
-        Text("โหมดตัวอย่างยังไม่ส่ง OTP จริง และไม่สร้าง session จริง", style = MaterialTheme.typography.bodySmall)
+    MaterialTheme(colorScheme = Colors) {
+        Surface(Modifier.fillMaxSize()) { LandRadarHome() }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainScreen(onSignOut: () -> Unit) {
+private fun LandRadarHome() {
     val repository = remember { PreviewPropertyRepository() }
-    var tab by rememberSaveable { mutableStateOf(MainTab.SEARCH) }
+    var tab by rememberSaveable { mutableStateOf(Tab.SEARCH) }
     var query by rememberSaveable { mutableStateOf("") }
-    var savedVersion by remember { mutableIntStateOf(0) }
+    var province by rememberSaveable { mutableStateOf("ทุกจังหวัด") }
+    var maxPrice by rememberSaveable { mutableStateOf<Long?>(null) }
     var selected by remember { mutableStateOf<Property?>(null) }
-    val saved = remember(savedVersion) { repository.savedIds() }
-    val visible = repository.search(query).filter { tab != MainTab.SAVED || it.id in saved }
+    var savedVersion by remember { mutableIntStateOf(0) }
+    val savedIds = remember(savedVersion) { repository.savedIds() }
+    val results = repository.search(query).filter {
+        (province == "ทุกจังหวัด" || it.province == province) &&
+            (maxPrice == null || it.priceBaht <= maxPrice!!) &&
+            (tab != Tab.SAVED || it.id in savedIds)
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("LandRadar") },
-                actions = { TextButton(onClick = onSignOut) { Text("ออก") } }
+                title = {
+                    Column {
+                        Text("LandRadar", fontWeight = FontWeight.Bold)
+                        Text("เรดาร์ค้นหาทรัพย์", style = MaterialTheme.typography.labelSmall)
+                    }
+                },
+                actions = {
+                    BadgedBox(badge = { if (savedIds.isNotEmpty()) Badge { Text(savedIds.size.toString()) } }) {
+                        Text("★", style = MaterialTheme.typography.titleLarge)
+                    }
+                    Spacer(Modifier.width(18.dp))
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
         bottomBar = {
-            NavigationBar {
-                MainTab.entries.forEach { item ->
+            NavigationBar(containerColor = Color.White) {
+                Tab.entries.forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item; selected = null },
-                        icon = { Text(when (item) {
-                            MainTab.SEARCH -> "⌕"
-                            MainTab.SAVED -> "★"
-                            MainTab.ALERTS -> "●"
-                        }) },
-                        label = { Text(item.label) }
+                        icon = { Text(item.icon, style = MaterialTheme.typography.titleLarge) },
+                        label = { Text(item.title) }
                     )
                 }
             }
         }
     ) { padding ->
-        when {
-            selected != null -> PropertyDetail(
+        if (selected != null) {
+            DetailScreen(
                 property = selected!!,
-                isSaved = selected!!.id in saved,
+                saved = selected!!.id in savedIds,
                 onBack = { selected = null },
-                onToggleSaved = {
+                onSave = {
                     repository.toggleSaved(selected!!.id)
                     savedVersion++
                 },
                 modifier = Modifier.padding(padding)
             )
-            tab == MainTab.ALERTS -> AlertsScreen(Modifier.padding(padding))
-            else -> PropertyList(
+        } else if (tab == Tab.ALERTS) {
+            AlertScreen(savedIds.size, Modifier.padding(padding))
+        } else {
+            SearchScreen(
                 query = query,
-                onQueryChange = { query = it },
-                properties = visible,
-                savedIds = saved,
+                onQuery = { query = it },
+                province = province,
+                onProvince = { province = it },
+                maxPrice = maxPrice,
+                onMaxPrice = { maxPrice = it },
+                properties = results,
+                savedIds = savedIds,
                 onOpen = { selected = it },
-                onToggleSaved = {
+                onSave = {
                     repository.toggleSaved(it.id)
                     savedVersion++
                 },
@@ -156,36 +118,85 @@ private fun MainScreen(onSignOut: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PropertyList(
+private fun SearchScreen(
     query: String,
-    onQueryChange: (String) -> Unit,
+    onQuery: (String) -> Unit,
+    province: String,
+    onProvince: (String) -> Unit,
+    maxPrice: Long?,
+    onMaxPrice: (Long?) -> Unit,
     properties: List<Property>,
     savedIds: Set<String>,
     onOpen: (Property) -> Unit,
-    onToggleSaved: (Property) -> Unit,
+    onSave: (Property) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+    LazyColumn(
+        modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp)
+    ) {
         item {
+            Text("ค้นหาทรัพย์ที่น่าสนใจ", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("ค้นหาและบันทึกไว้ แล้วดูข้อมูลเชิงลึกต่อบนเว็บไซต์")
+            Spacer(Modifier.height(14.dp))
             OutlinedTextField(
                 value = query,
-                onValueChange = onQueryChange,
-                label = { Text("ค้นหาจังหวัด อำเภอ หรือประเภททรัพย์") },
+                onValueChange = onQuery,
+                leadingIcon = { Text("⌕") },
+                placeholder = { Text("จังหวัด อำเภอ หรือประเภททรัพย์") },
                 singleLine = true,
+                shape = MaterialTheme.shapes.large,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(12.dp))
-            Card(Modifier.fillMaxWidth().height(150.dp)) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("แผนที่ขนาดเล็ก • " + properties.size + " หมุด")
+            Spacer(Modifier.height(10.dp))
+            Text("จังหวัด", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("ทุกจังหวัด", "เชียงใหม่", "นนทบุรี", "ขอนแก่น").forEach { value ->
+                    FilterChip(
+                        selected = province == value,
+                        onClick = { onProvince(value) },
+                        label = { Text(value) }
+                    )
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Text("ราคาไม่เกิน", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf<Pair<String, Long?>>("ทั้งหมด" to null, "1.5 ล้าน" to 1_500_000, "2 ล้าน" to 2_000_000, "3 ล้าน" to 3_000_000).forEach { item ->
+                    FilterChip(
+                        selected = maxPrice == item.second,
+                        onClick = { onMaxPrice(item.second) },
+                        label = { Text(item.first) }
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE2EFE4)),
+                modifier = Modifier.fillMaxWidth().height(156.dp)
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("⌖", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
+                        Text("แผนที่ย่อ • " + properties.size + " หมุด")
+                        Text("แตะรายการด้านล่างเพื่อดูตำแหน่ง", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Text("พบ " + properties.size + " รายการ", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
         }
-        if (properties.isEmpty()) item { Text("ไม่พบทรัพย์ที่ตรงกับการค้นหา") }
+        if (properties.isEmpty()) {
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Text("ไม่พบทรัพย์ ลองเปลี่ยนตัวกรอง", Modifier.padding(24.dp))
+                }
+            }
+        }
         items(properties, key = { it.id }) { property ->
-            PropertyCard(property, property.id in savedIds, onOpen, onToggleSaved)
+            PropertyCard(property, property.id in savedIds, onOpen, onSave)
             Spacer(Modifier.height(10.dp))
         }
     }
@@ -194,65 +205,97 @@ private fun PropertyList(
 @Composable
 private fun PropertyCard(
     property: Property,
-    isSaved: Boolean,
+    saved: Boolean,
     onOpen: (Property) -> Unit,
-    onToggleSaved: (Property) -> Unit
+    onSave: (Property) -> Unit
 ) {
-    Card(Modifier.fillMaxWidth().clickable { onOpen(property) }) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    ElevatedCard(Modifier.fillMaxWidth().clickable { onOpen(property) }) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(72.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🏠", style = MaterialTheme.typography.headlineLarge)
+            }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(property.title, fontWeight = FontWeight.Bold)
-                Text(property.district + ", " + property.province)
-                Text(money(property.priceBaht) + " บาท • " + property.areaRai + " ไร่")
-                Text("ขายทอดตลาด " + property.auctionDate, style = MaterialTheme.typography.bodySmall)
+                Text(property.district + " • " + property.province)
+                Text(money(property.priceBaht) + " บาท", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text(property.areaRai.toString() + " ไร่ • " + property.auctionDate, style = MaterialTheme.typography.bodySmall)
             }
-            TextButton(onClick = { onToggleSaved(property) }) {
-                Text(if (isSaved) "★" else "☆", style = MaterialTheme.typography.headlineSmall)
+            IconButton(onClick = { onSave(property) }) {
+                Text(if (saved) "★" else "☆", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
 
 @Composable
-private fun PropertyDetail(
+private fun DetailScreen(
     property: Property,
-    isSaved: Boolean,
+    saved: Boolean,
     onBack: () -> Unit,
-    onToggleSaved: () -> Unit,
+    onSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier.fillMaxSize().padding(16.dp)) {
-        TextButton(onClick = onBack) { Text("‹ กลับ") }
-        Text(property.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-        Card(Modifier.fillMaxWidth().height(180.dp)) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("ตำแหน่ง " + property.latitude + ", " + property.longitude)
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+        item {
+            TextButton(onClick = onBack) { Text("‹ กลับไปหน้าค้นหา") }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE2EFE4)),
+                modifier = Modifier.fillMaxWidth().height(190.dp)
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("⌖", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(property.latitude.toString() + ", " + property.longitude)
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(property.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(property.district + ", " + property.province)
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider()
+            DetailLine("รหัสทรัพย์", property.id)
+            DetailLine("ราคาตั้งต้น", money(property.priceBaht) + " บาท")
+            DetailLine("ขนาด", property.areaRai.toString() + " ไร่")
+            DetailLine("วันขายทอดตลาด", property.auctionDate)
+            Spacer(Modifier.height(18.dp))
+            Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text(if (saved) "★ บันทึกแล้ว" else "☆ บันทึกทรัพย์นี้")
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text("ดูข้อมูลเชิงลึกบนเว็บไซต์หลัก")
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Text("รหัสทรัพย์: " + property.id)
-        Text("ทำเล: " + property.district + ", " + property.province)
-        Text("ราคาตั้งต้น: " + money(property.priceBaht) + " บาท")
-        Text("ขนาด: " + property.areaRai + " ไร่")
-        Text("วันขายทอดตลาด: " + property.auctionDate)
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = onToggleSaved, modifier = Modifier.fillMaxWidth()) {
-            Text(if (isSaved) "เลิกบันทึกทรัพย์" else "☆ บันทึกทรัพย์")
-        }
-        Text("ข้อมูลเชิงลึกและการวิเคราะห์เต็มรูปแบบให้เปิดดูต่อบนเว็บไซต์หลัก", style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
-private fun AlertsScreen(modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxSize().padding(24.dp)) {
+private fun DetailLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
+        Text(label, Modifier.weight(1f), color = Color.Gray)
+        Text(value, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun AlertScreen(savedCount: Int, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxSize().padding(16.dp)) {
         Text("การแจ้งเตือน", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("ยังไม่มีการแจ้งเตือนใหม่")
-                Text("ระบบจะแจ้งเฉพาะทรัพย์ที่คุณบันทึกหรือกำลังติดตาม")
+        Text("ติดตามเฉพาะเรื่องสำคัญ ไม่รบกวนเกินจำเป็น")
+        Spacer(Modifier.height(16.dp))
+        ElevatedCard(Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("🔔", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text("ทรัพย์ที่บันทึกไว้ " + savedCount + " รายการ", fontWeight = FontWeight.Bold)
+                    Text(if (savedCount == 0) "กดดาวที่หน้าค้นหาเพื่อเริ่มติดตาม" else "ระบบจะแจ้งเมื่อวันขายหรือข้อมูลเปลี่ยน")
+                }
             }
         }
     }
