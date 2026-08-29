@@ -9,7 +9,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.landradar.android.R
 import com.landradar.android.data.Property
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.drawable.BitmapDrawable
 import org.osmdroid.config.Configuration
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -51,7 +58,7 @@ fun PropertyMap(
                     position = GeoPoint(property.latitude, property.longitude)
                     title = property.title
                     snippet = property.district + ", " + property.province
-                    icon = ContextCompat.getDrawable(context, R.drawable.ic_property_marker)
+                    icon = createMarkerIcon(context.resources.displayMetrics.density)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     setOnMarkerClickListener { marker, _ ->
                         marker.showInfoWindow()
@@ -70,14 +77,40 @@ fun PropertyMap(
                     map.controller.setZoom(15.0)
                     map.controller.setCenter(points.first())
                 }
-                else -> {
-                    val centerLat = points.map { it.latitude }.average().coerceIn(5.6, 20.5)
-                    val centerLon = points.map { it.longitude }.average().coerceIn(97.3, 105.7)
-                    map.controller.setZoom(6.4)
-                    map.controller.animateTo(GeoPoint(centerLat, centerLon))
+                else -> map.post {
+                    val bounds = BoundingBox.fromGeoPoints(points)
+                    map.zoomToBoundingBox(bounds, true, 96)
+                    map.controller.setCenter(bounds.centerWithDateLine)
+                    if (map.zoomLevelDouble < 6.2) map.controller.setZoom(6.2)
+                    map.invalidate()
                 }
             }
             map.invalidate()
         }
     )
+}
+
+private fun createMarkerIcon(density: Float): BitmapDrawable {
+    val width = (40 * density).toInt().coerceAtLeast(40)
+    val height = (48 * density).toInt().coerceAtLeast(48)
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    val cx = width / 2f
+    val radius = width * 0.42f
+
+    paint.color = Color.rgb(23, 107, 58)
+    val pin = Path().apply {
+        moveTo(cx, height.toFloat())
+        cubicTo(width * 0.34f, height * 0.72f, width * 0.08f, height * 0.52f, width * 0.08f, radius)
+        arcTo(width * 0.08f, 0f, width * 0.92f, radius * 2f, 180f, 180f, false)
+        cubicTo(width * 0.92f, height * 0.52f, width * 0.66f, height * 0.72f, cx, height.toFloat())
+        close()
+    }
+    canvas.drawPath(pin, paint)
+    paint.color = Color.WHITE
+    canvas.drawCircle(cx, radius, radius * 0.52f, paint)
+    paint.color = Color.rgb(23, 107, 58)
+    canvas.drawCircle(cx, radius, radius * 0.22f, paint)
+    return BitmapDrawable(null, bitmap)
 }
