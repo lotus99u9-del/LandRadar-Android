@@ -6,6 +6,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import com.landradar.android.R
 import com.landradar.android.data.Property
 import org.osmdroid.config.Configuration
 import org.osmdroid.util.BoundingBox
@@ -49,6 +51,7 @@ fun PropertyMap(
                     position = GeoPoint(property.latitude, property.longitude)
                     title = property.title
                     snippet = property.district + ", " + property.province
+                    icon = ContextCompat.getDrawable(context, R.drawable.ic_property_marker)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     setOnMarkerClickListener { marker, _ ->
                         marker.showInfoWindow()
@@ -67,8 +70,11 @@ fun PropertyMap(
                     map.controller.setZoom(15.0)
                     map.controller.setCenter(points.first())
                 }
-                else -> map.post {
-                    map.zoomToBoundingBox(BoundingBox.fromGeoPoints(points), true, 72)
+                else -> {
+                    val centerLat = points.map { it.latitude }.average().coerceIn(5.6, 20.5)
+                    val centerLon = points.map { it.longitude }.average().coerceIn(97.3, 105.7)
+                    map.controller.setZoom(6.4)
+                    map.controller.animateTo(GeoPoint(centerLat, centerLon))
                 }
             }
             map.invalidate()

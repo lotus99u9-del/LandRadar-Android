@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -69,7 +70,7 @@ private fun LandRadarHome() {
                     BadgedBox(badge = { if (savedIds.isNotEmpty()) Badge { Text(savedIds.size.toString()) } }) {
                         Text("★", style = MaterialTheme.typography.titleLarge)
                     }
-                    Spacer(Modifier.width(18.dp))
+                    Spacer(Modifier.width(24.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
@@ -155,8 +156,8 @@ private fun SearchScreen(
             )
             Spacer(Modifier.height(10.dp))
             Text("จังหวัด", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("ทุกจังหวัด", "เชียงใหม่", "นนทบุรี", "ขอนแก่น").forEach { value ->
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(listOf("ทุกจังหวัด", "เชียงใหม่", "นนทบุรี", "ขอนแก่น")) { value ->
                     FilterChip(
                         selected = province == value,
                         onClick = { onProvince(value) },
@@ -165,12 +166,12 @@ private fun SearchScreen(
                 }
             }
             Text("ราคาไม่เกิน", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf<Pair<String, Long?>>("ทั้งหมด" to null, "1.5 ล้าน" to 1_500_000, "2 ล้าน" to 2_000_000, "3 ล้าน" to 3_000_000).forEach { item ->
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(listOf<Pair<String, Long?>>("ทั้งหมด" to null, "1.5 ล้าน" to 1_500_000, "2 ล้าน" to 2_000_000, "3 ล้าน" to 3_000_000)) { option ->
                     FilterChip(
-                        selected = maxPrice == item.second,
-                        onClick = { onMaxPrice(item.second) },
-                        label = { Text(item.first) }
+                        selected = maxPrice == option.second,
+                        onClick = { onMaxPrice(option.second) },
+                        label = { Text(option.first) }
                     )
                 }
             }
@@ -178,7 +179,7 @@ private fun SearchScreen(
             PropertyMap(
                 properties = properties,
                 onPropertyClick = onOpen,
-                modifier = Modifier.fillMaxWidth().height(210.dp)
+                modifier = Modifier.fillMaxWidth().height(180.dp)
             )
             Spacer(Modifier.height(14.dp))
             Text("พบ " + properties.size + " รายการ", fontWeight = FontWeight.Bold)
