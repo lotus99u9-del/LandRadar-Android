@@ -31,7 +31,7 @@ import android.graphics.Path
 import android.graphics.drawable.BitmapDrawable
 import org.osmdroid.config.Configuration
 import org.osmdroid.util.BoundingBox
-import org.osmdroid.util.BoundingBox
+
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
