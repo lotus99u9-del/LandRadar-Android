@@ -2,13 +2,15 @@ package com.landradar.android.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn\nimport androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier\nimport androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,7 +41,8 @@ fun LandRadarApp() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LandRadarHome() {
-    val context = LocalContext.current\n    val repository = remember { LocalPropertyRepository(context) }
+    val context = LocalContext.current
+    val repository = remember { LocalPropertyRepository(context) }
     var tab by rememberSaveable { mutableStateOf(Tab.SEARCH) }
     var query by rememberSaveable { mutableStateOf("") }
     var province by rememberSaveable { mutableStateOf("ทุกจังหวัด") }
