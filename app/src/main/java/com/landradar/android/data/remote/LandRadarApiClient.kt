@@ -1,6 +1,7 @@
 package com.landradar.android.data.remote
 
 import com.landradar.android.data.Property
+import com.landradar.android.data.MarkerType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -63,7 +64,8 @@ class LandRadarApiClient(
                         auctionRound = item.optString("auctionRound", "ยังไม่ระบุ"),
                         legalExecutionOffice = item.optString("legalExecutionOffice", "ยังไม่ระบุ"),
                         status = item.optString("status", "รอตรวจสอบ"),
-                        updatedAt = item.optString("updatedAt", "ยังไม่ระบุ")
+                        updatedAt = item.optString("updatedAt", "ยังไม่ระบุ"),
+                        markerType = MarkerType.fromApi(item.optString("markerType", "legal_execution"))
                     )
                 )
             }

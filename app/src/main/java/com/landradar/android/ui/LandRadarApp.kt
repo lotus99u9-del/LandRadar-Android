@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.landradar.android.data.LocalPropertyRepository
 import com.landradar.android.data.Property
+import com.landradar.android.data.MarkerType
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -181,6 +182,8 @@ private fun SearchScreen(
                 onPropertyClick = onOpen,
                 modifier = Modifier.fillMaxWidth().height(180.dp)
             )
+            Spacer(Modifier.height(8.dp))
+            MarkerLegend()
             Spacer(Modifier.height(14.dp))
             Text("พบ " + properties.size + " รายการ", fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
@@ -216,6 +219,7 @@ private fun PropertyCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
+                Text(property.markerType.label, color = markerUiColor(property.markerType), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 Text(property.title, fontWeight = FontWeight.Bold)
                 Text(property.district + " • " + property.province)
                 Text(money(property.priceBaht) + " บาท", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
@@ -249,6 +253,7 @@ private fun DetailScreen(
                 Column(Modifier.weight(1f)) {
                     Text(property.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Text(property.subdistrict + " • " + property.district + " • " + property.province)
+                    Text(property.markerType.label, color = markerUiColor(property.markerType), fontWeight = FontWeight.Bold)
                 }
                 AssistChip(onClick = {}, label = { Text(property.status) })
             }
@@ -344,3 +349,27 @@ private fun AlertScreen(savedCount: Int, modifier: Modifier = Modifier) {
 
 private fun money(value: Long): String =
     NumberFormat.getNumberInstance(Locale("th", "TH")).format(value)
+
+@Composable
+private fun MarkerLegend() {
+    ElevatedCard(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            MarkerType.entries.forEach { type ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("●", color = markerUiColor(type), style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.width(4.dp))
+                    Text(type.label, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }
+}
+
+private fun markerUiColor(type: MarkerType): Color = when (type) {
+    MarkerType.LEGAL_EXECUTION -> Color(0xFF191919)
+    MarkerType.FOR_SALE -> Color(0xFF1C5CBE)
+    MarkerType.PRIME_LOCATION -> Color(0xFFD4A423)
+}

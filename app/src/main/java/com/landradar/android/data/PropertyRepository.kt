@@ -22,7 +22,8 @@ class LocalPropertyRepository(context: Context) : PropertyRepository {
             address = "ถนนเชียงใหม่–ลำพูน", subdistrict = "หนองหอย",
             titleDeedNumber = "โฉนดเลขที่ 45821", appraisalPriceBaht = 2_150_000,
             auctionRound = "นัดที่ 2", legalExecutionOffice = "สำนักงานบังคับคดีจังหวัดเชียงใหม่",
-            status = "เปิดขายทอดตลาด", updatedAt = "29 ส.ค. 2569"
+            status = "เปิดขายทอดตลาด", updatedAt = "29 ส.ค. 2569",
+            markerType = MarkerType.LEGAL_EXECUTION
         ),
         Property(
             id = "LR-002", title = "ที่ดินเปล่าใกล้ถนนหลัก",
@@ -34,7 +35,8 @@ class LocalPropertyRepository(context: Context) : PropertyRepository {
             subdistrict = "ละหาร", titleDeedNumber = "โฉนดเลขที่ 90112",
             appraisalPriceBaht = 2_780_000, auctionRound = "นัดที่ 1",
             legalExecutionOffice = "สำนักงานบังคับคดีจังหวัดนนทบุรี",
-            status = "เปิดขายทอดตลาด", updatedAt = "28 ส.ค. 2569"
+            status = "เปิดรับฝากขาย", updatedAt = "28 ส.ค. 2569",
+            markerType = MarkerType.FOR_SALE
         ),
         Property(
             id = "LR-003", title = "บ้านเดี่ยวสองชั้น",
@@ -46,7 +48,8 @@ class LocalPropertyRepository(context: Context) : PropertyRepository {
             subdistrict = "ในเมือง", titleDeedNumber = "โฉนดเลขที่ 33709",
             appraisalPriceBaht = 1_650_000, auctionRound = "นัดที่ 4",
             legalExecutionOffice = "สำนักงานบังคับคดีจังหวัดขอนแก่น",
-            status = "เปิดขายทอดตลาด", updatedAt = "27 ส.ค. 2569"
+            status = "ทำเลศักยภาพสูง", updatedAt = "27 ส.ค. 2569",
+            markerType = MarkerType.PRIME_LOCATION
         )
     )
 

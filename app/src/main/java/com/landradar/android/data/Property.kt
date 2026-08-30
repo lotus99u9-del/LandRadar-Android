@@ -1,5 +1,16 @@
 package com.landradar.android.data
 
+enum class MarkerType(val apiValue: String, val label: String) {
+    LEGAL_EXECUTION("legal_execution", "บังคับคดี"),
+    FOR_SALE("for_sale", "ฝากขาย"),
+    PRIME_LOCATION("prime_location", "ทำเลทอง");
+
+    companion object {
+        fun fromApi(value: String): MarkerType =
+            entries.firstOrNull { it.apiValue == value } ?: LEGAL_EXECUTION
+    }
+}
+
 data class Property(
     val id: String,
     val title: String,
