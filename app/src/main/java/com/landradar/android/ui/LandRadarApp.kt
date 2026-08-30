@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.landradar.android.data.LocalPropertyRepository
 import com.landradar.android.data.MarkerType
 import com.landradar.android.data.Property
+import com.landradar.android.data.AdministrativeAreas
+import com.landradar.android.data.LocalizedName
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -53,8 +56,9 @@ private fun LandRadarHome() {
     var language by rememberSaveable { mutableStateOf(Language.TH) }
     var tab by rememberSaveable { mutableStateOf(Tab.SEARCH) }
     var query by rememberSaveable { mutableStateOf("") }
-    var province by rememberSaveable { mutableStateOf("") }
-    var district by rememberSaveable { mutableStateOf("") }
+    var provinceCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var districtCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var subdistrictCode by rememberSaveable { mutableStateOf<String?>(null) }
     var minPrice by rememberSaveable { mutableStateOf("") }
     var maxPrice by rememberSaveable { mutableStateOf("") }
     var minArea by rememberSaveable { mutableStateOf("") }
@@ -69,11 +73,15 @@ private fun LandRadarHome() {
     var savedVersion by remember { mutableIntStateOf(0) }
 
     val savedIds = remember(savedVersion) { repository.savedIds() }
+    val selectedProvince = AdministrativeAreas.provinces.find { it.code == provinceCode }
+    val selectedDistrict = selectedProvince?.districts?.find { it.code == districtCode }
+    val selectedSubdistrict = selectedDistrict?.subdistricts?.find { it.code == subdistrictCode }
     val all = repository.search(query)
     val filtered = all.asSequence()
         .filter { it.markerType in markerTypes }
-        .filter { province.isBlank() || it.province.contains(province, true) }
-        .filter { district.isBlank() || it.district.contains(district, true) }
+        .filter { selectedProvince == null || it.province == selectedProvince.name.th }
+        .filter { selectedDistrict == null || it.district == selectedDistrict.name.th }
+        .filter { selectedSubdistrict == null || it.subdistrict == selectedSubdistrict.name.th }
         .filter { minPrice.toLongOrNull()?.let { min -> it.priceBaht >= min } ?: true }
         .filter { maxPrice.toLongOrNull()?.let { max -> it.priceBaht <= max } ?: true }
         .filter { minArea.toDoubleOrNull()?.let { min -> it.areaRai >= min } ?: true }
@@ -93,7 +101,8 @@ private fun LandRadarHome() {
         }
 
     fun clearFilters() {
-        province = ""; district = ""; minPrice = ""; maxPrice = ""
+        provinceCode = null; districtCode = null; subdistrictCode = null
+        minPrice = ""; maxPrice = ""
         minArea = ""; maxArea = ""; auctionDate = ""
         assetFilter = AssetFilter.ALL; statusFilter = StatusFilter.ALL
         sortMode = SortMode.LATEST; markerTypes = MarkerType.entries.toSet()
@@ -141,8 +150,8 @@ private fun LandRadarHome() {
                 onSave = { repository.toggleSaved(selected!!.id); savedVersion++ },
                 modifier = Modifier.padding(padding)
             )
-            tab == Tab.ALERTS -> AlertScreen(savedIds.size, language, Modifier.padding(padding))
-            tab == Tab.ACCOUNT -> AccountScreen(language, Modifier.padding(padding))
+            tab == Tab.ALERTS -> AlertScreen(savedIds.size, language, { tab = Tab.SEARCH }, Modifier.padding(padding))
+            tab == Tab.ACCOUNT -> AccountScreen(language, { tab = Tab.SEARCH }, Modifier.padding(padding))
             else -> SearchScreen(
                 language = language,
                 query = query,
@@ -157,6 +166,7 @@ private fun LandRadarHome() {
                 onClear = { clearFilters() },
                 onOpen = { selected = it },
                 onSave = { repository.toggleSaved(it.id); savedVersion++ },
+                onBack = if (tab == Tab.SAVED) ({ tab = Tab.SEARCH }) else null,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -165,8 +175,12 @@ private fun LandRadarHome() {
     if (showFilters) {
         FilterDialog(
             language = language,
-            province = province, onProvince = { province = it },
-            district = district, onDistrict = { district = it },
+            provinceCode = provinceCode,
+            onProvince = { provinceCode = it; districtCode = null; subdistrictCode = null },
+            districtCode = districtCode,
+            onDistrict = { districtCode = it; subdistrictCode = null },
+            subdistrictCode = subdistrictCode,
+            onSubdistrict = { subdistrictCode = it },
             minPrice = minPrice, onMinPrice = { minPrice = digits(it) },
             maxPrice = maxPrice, onMaxPrice = { maxPrice = digits(it) },
             minArea = minArea, onMinArea = { minArea = decimal(it) },
@@ -178,6 +192,14 @@ private fun LandRadarHome() {
             onClear = { clearFilters() },
             onDismiss = { showFilters = false }
         )
+    }
+
+    BackHandler(enabled = selected != null || showFilters || tab != Tab.SEARCH) {
+        when {
+            showFilters -> showFilters = false
+            selected != null -> selected = null
+            else -> tab = Tab.SEARCH
+        }
     }
 }
 
@@ -209,10 +231,12 @@ private fun SearchScreen(
     onClear: () -> Unit,
     onOpen: (Property) -> Unit,
     onSave: (Property) -> Unit,
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
         item {
+            if (onBack != null) BackButton(language, onBack)
             Text(tx(language, "ค้นหาทรัพย์ที่น่าสนใจ", "Find interesting properties", "查找优质房产"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
             Text(tx(language, "ค้นหา บันทึก และติดตามในที่เดียว", "Search, save and track in one place", "一站式搜索、收藏和追踪"))
             Spacer(Modifier.height(12.dp))
@@ -268,8 +292,9 @@ private fun SearchScreen(
 @Composable
 private fun FilterDialog(
     language: Language,
-    province: String, onProvince: (String) -> Unit,
-    district: String, onDistrict: (String) -> Unit,
+    provinceCode: String?, onProvince: (String?) -> Unit,
+    districtCode: String?, onDistrict: (String?) -> Unit,
+    subdistrictCode: String?, onSubdistrict: (String?) -> Unit,
     minPrice: String, onMinPrice: (String) -> Unit,
     maxPrice: String, onMaxPrice: (String) -> Unit,
     minArea: String, onMinArea: (String) -> Unit,
@@ -284,6 +309,7 @@ private fun FilterDialog(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
+                BackButton(language, onDismiss)
                 Text(tx(language, "ตัวกรองทั้งหมด", "All filters", "全部筛选"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
                 Text(tx(language, "เลือกเฉพาะที่จำเป็น", "Choose only what you need", "仅选择需要的条件"))
             }
@@ -296,9 +322,30 @@ private fun FilterDialog(
                 }
             }
             item {
-                OutlinedTextField(province, onProvince, label = { Text(tx(language, "จังหวัด", "Province", "府/省")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                val province = AdministrativeAreas.provinces.find { it.code == provinceCode }
+                val district = province?.districts?.find { it.code == districtCode }
+                AreaSelector(
+                    label = tx(language, "จังหวัด", "Province", "府/省"),
+                    selected = province?.name?.localized(language),
+                    options = AdministrativeAreas.provinces.map { it.code to it.name.localized(language) },
+                    onSelect = onProvince
+                )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(district, onDistrict, label = { Text(tx(language, "อำเภอ/เขต", "District", "区/县")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                AreaSelector(
+                    label = tx(language, "อำเภอ/เขต", "District", "区/县"),
+                    selected = district?.name?.localized(language),
+                    options = province?.districts.orEmpty().map { it.code to it.name.localized(language) },
+                    enabled = province != null,
+                    onSelect = onDistrict
+                )
+                Spacer(Modifier.height(8.dp))
+                AreaSelector(
+                    label = tx(language, "ตำบล/แขวง", "Subdistrict", "乡/街道"),
+                    selected = district?.subdistricts?.find { it.code == subdistrictCode }?.name?.localized(language),
+                    options = district?.subdistricts.orEmpty().map { it.code to it.name.localized(language) },
+                    enabled = district != null,
+                    onSelect = onSubdistrict
+                )
             }
             item {
                 Text(tx(language, "ช่วงราคา (บาท)", "Price range (THB)", "价格范围（泰铢）"), fontWeight = FontWeight.Bold)
@@ -355,10 +402,10 @@ private fun PropertyCard(property: Property, saved: Boolean, language: Language,
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(markerLabel(language, property.markerType), color = markerColor(property.markerType), fontWeight = FontWeight.ExtraBold)
-                Text(property.title, fontWeight = FontWeight.Bold)
-                Text(property.district + " • " + property.province)
+                Text(localizeValue(language, property.title), fontWeight = FontWeight.Bold)
+                Text(localizeValue(language, property.district) + " • " + localizeValue(language, property.province))
                 Text(money(property.priceBaht) + " " + tx(language, "บาท", "THB", "泰铢"), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
-                Text(property.areaRai.toString() + " " + tx(language, "ไร่", "rai", "莱") + " • " + property.auctionDate, style = MaterialTheme.typography.bodySmall)
+                Text(property.areaRai.toString() + " " + tx(language, "ไร่", "rai", "莱") + " • " + localizeValue(language, property.auctionDate), style = MaterialTheme.typography.bodySmall)
             }
             IconButton(onClick = { onSave(property) }) { Text(if (saved) "★" else "☆", style = MaterialTheme.typography.headlineSmall, color = Color(0xFFD4A423)) }
         }
@@ -373,8 +420,8 @@ private fun DetailScreen(property: Property, saved: Boolean, language: Language,
             PropertyMap(listOf(property), {}, Modifier.fillMaxWidth().height(220.dp))
             Spacer(Modifier.height(14.dp))
             Text(markerLabel(language, property.markerType), color = markerColor(property.markerType), fontWeight = FontWeight.ExtraBold)
-            Text(property.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-            Text(property.subdistrict + " • " + property.district + " • " + property.province)
+            Text(localizeValue(language, property.title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+            Text(listOf(property.subdistrict, property.district, property.province).joinToString(" • ") { localizeValue(language, it) })
             Spacer(Modifier.height(12.dp))
             DetailSection(tx(language, "ราคาและเนื้อที่", "Price and area", "价格与面积")) {
                 DetailLine(tx(language, "ราคาตั้งขาย", "Starting price", "起拍价"), money(property.priceBaht))
@@ -384,16 +431,16 @@ private fun DetailScreen(property: Property, saved: Boolean, language: Language,
             Spacer(Modifier.height(10.dp))
             DetailSection(tx(language, "ข้อมูลคดีและทรัพย์", "Case and property", "案件与房产")) {
                 DetailLine(tx(language, "เลขคดี", "Case number", "案件编号"), property.caseNumber)
-                DetailLine(tx(language, "ลำดับทรัพย์", "Asset sequence", "资产序号"), property.assetSequence)
-                DetailLine(tx(language, "ประเภท", "Type", "类型"), property.assetType)
-                DetailLine(tx(language, "โฉนด", "Title deed", "地契"), property.titleDeedNumber)
+                DetailLine(tx(language, "ลำดับทรัพย์", "Asset sequence", "资产序号"), localizeValue(language, property.assetSequence))
+                DetailLine(tx(language, "ประเภท", "Type", "类型"), localizeValue(language, property.assetType))
+                DetailLine(tx(language, "โฉนด", "Title deed", "地契"), localizeValue(language, property.titleDeedNumber))
             }
             Spacer(Modifier.height(10.dp))
             DetailSection(tx(language, "การขายทอดตลาด", "Auction", "拍卖")) {
-                DetailLine(tx(language, "รอบขาย", "Auction round", "拍卖轮次"), property.auctionRound)
-                DetailLine(tx(language, "วันขาย", "Auction date", "拍卖日期"), property.auctionDate)
-                DetailLine(tx(language, "สำนักงาน", "Office", "执行办公室"), property.legalExecutionOffice)
-                DetailLine(tx(language, "อัปเดต", "Updated", "更新时间"), property.updatedAt)
+                DetailLine(tx(language, "รอบขาย", "Auction round", "拍卖轮次"), localizeValue(language, property.auctionRound))
+                DetailLine(tx(language, "วันขาย", "Auction date", "拍卖日期"), localizeValue(language, property.auctionDate))
+                DetailLine(tx(language, "สำนักงาน", "Office", "执行办公室"), localizeValue(language, property.legalExecutionOffice))
+                DetailLine(tx(language, "อัปเดต", "Updated", "更新时间"), localizeValue(language, property.updatedAt))
             }
             Spacer(Modifier.height(16.dp))
             Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(52.dp)) {
@@ -426,8 +473,9 @@ private fun DetailLine(label: String, value: String) {
 }
 
 @Composable
-private fun AlertScreen(savedCount: Int, language: Language, modifier: Modifier = Modifier) {
+private fun AlertScreen(savedCount: Int, language: Language, onBack: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().padding(16.dp)) {
+        BackButton(language, onBack)
         Text(tx(language, "การแจ้งเตือน", "Notifications", "通知"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.height(12.dp))
         ElevatedCard(Modifier.fillMaxWidth()) {
@@ -443,15 +491,16 @@ private fun AlertScreen(savedCount: Int, language: Language, modifier: Modifier 
 }
 
 @Composable
-private fun AccountScreen(language: Language, modifier: Modifier = Modifier) {
+private fun AccountScreen(language: Language, onBack: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxSize().padding(16.dp)) {
+        BackButton(language, onBack)
         Text(tx(language, "บัญชีผู้ใช้", "Account", "用户账户"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
         Spacer(Modifier.height(12.dp))
         ElevatedCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 DetailLine(tx(language, "ชื่อผู้ใช้", "Username", "用户名"), "LandRadar User")
-                DetailLine(tx(language, "โพสต์หมดอายุ", "Post expiry", "发布到期日"), "30 ก.ย. 2569")
-                DetailLine(tx(language, "แพ็กเกจหมดอายุ", "Package expiry", "套餐到期日"), "31 ธ.ค. 2569")
+                DetailLine(tx(language, "โพสต์หมดอายุ", "Post expiry", "发布到期日"), localizeValue(language, "30 ก.ย. 2569"))
+                DetailLine(tx(language, "แพ็กเกจหมดอายุ", "Package expiry", "套餐到期日"), localizeValue(language, "31 ธ.ค. 2569"))
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text(tx(language, "ต่ออายุ", "Renew", "续费")) }
                 OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text(tx(language, "ออกจากระบบ", "Sign out", "退出登录")) }
@@ -527,6 +576,84 @@ private fun sortLabel(l: Language, v: SortMode) = when (v) {
     SortMode.PRICE_LOW -> tx(l, "ราคาต่ำสุด", "Lowest price", "价格最低")
     SortMode.PRICE_HIGH -> tx(l, "ราคาสูงสุด", "Highest price", "价格最高")
     SortMode.AUCTION_SOON -> tx(l, "ใกล้ขายที่สุด", "Auction soonest", "最近拍卖")
+}
+
+@Composable
+private fun BackButton(language: Language, onBack: () -> Unit) {
+    TextButton(onClick = onBack) { Text("‹ " + tx(language, "กลับ", "Back", "返回")) }
+}
+
+@Composable
+private fun AreaSelector(
+    label: String,
+    selected: String?,
+    options: List<Pair<String, String>>,
+    enabled: Boolean = true,
+    onSelect: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(selected ?: label, modifier = Modifier.weight(1f))
+            Text("⌄")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("—") }, onClick = { onSelect(null); expanded = false })
+            options.forEach { (code, name) ->
+                DropdownMenuItem(text = { Text(name) }, onClick = { onSelect(code); expanded = false })
+            }
+        }
+    }
+}
+
+private fun LocalizedName.localized(language: Language) = when (language) {
+    Language.TH -> th
+    Language.EN -> en
+    Language.ZH -> zh
+}
+
+private val localizedValues = mapOf(
+    "เชียงใหม่" to LocalizedName("เชียงใหม่", "Chiang Mai", "清迈"),
+    "เมืองเชียงใหม่" to LocalizedName("เมืองเชียงใหม่", "Mueang Chiang Mai", "清迈府治县"),
+    "หนองหอย" to LocalizedName("หนองหอย", "Nong Hoi", "农霍"),
+    "นนทบุรี" to LocalizedName("นนทบุรี", "Nonthaburi", "暖武里"),
+    "บางบัวทอง" to LocalizedName("บางบัวทอง", "Bang Bua Thong", "邦博通县"),
+    "ละหาร" to LocalizedName("ละหาร", "Lahan", "拉汉"),
+    "ขอนแก่น" to LocalizedName("ขอนแก่น", "Khon Kaen", "孔敬"),
+    "เมืองขอนแก่น" to LocalizedName("เมืองขอนแก่น", "Mueang Khon Kaen", "孔敬府治县"),
+    "ในเมือง" to LocalizedName("ในเมือง", "Nai Mueang", "奈孟"),
+    "ที่ดินพร้อมสิ่งปลูกสร้าง" to LocalizedName("ที่ดินพร้อมสิ่งปลูกสร้าง", "Land with buildings", "附建筑物土地"),
+    "ที่ดินเปล่าใกล้ถนนหลัก" to LocalizedName("ที่ดินเปล่าใกล้ถนนหลัก", "Vacant land near main road", "主干道附近空地"),
+    "ที่ดินเปล่า" to LocalizedName("ที่ดินเปล่า", "Vacant land", "空地"),
+    "บ้านเดี่ยวสองชั้น" to LocalizedName("บ้านเดี่ยวสองชั้น", "Two-storey detached house", "两层独立住宅"),
+    "บ้านเดี่ยวพร้อมที่ดิน" to LocalizedName("บ้านเดี่ยวพร้อมที่ดิน", "Detached house with land", "独立住宅及土地"),
+    "ลำดับที่ 1" to LocalizedName("ลำดับที่ 1", "Sequence 1", "序号 1"),
+    "ลำดับที่ 2" to LocalizedName("ลำดับที่ 2", "Sequence 2", "序号 2"),
+    "ลำดับที่ 3" to LocalizedName("ลำดับที่ 3", "Sequence 3", "序号 3"),
+    "โฉนดเลขที่ 45821" to LocalizedName("โฉนดเลขที่ 45821", "Title deed no. 45821", "地契编号 45821"),
+    "โฉนดเลขที่ 90112" to LocalizedName("โฉนดเลขที่ 90112", "Title deed no. 90112", "地契编号 90112"),
+    "โฉนดเลขที่ 33709" to LocalizedName("โฉนดเลขที่ 33709", "Title deed no. 33709", "地契编号 33709"),
+    "นัดที่ 1" to LocalizedName("นัดที่ 1", "Round 1", "第 1 场"),
+    "นัดที่ 2" to LocalizedName("นัดที่ 2", "Round 2", "第 2 场"),
+    "นัดที่ 4" to LocalizedName("นัดที่ 4", "Round 4", "第 4 场"),
+    "สำนักงานบังคับคดีจังหวัดเชียงใหม่" to LocalizedName("สำนักงานบังคับคดีจังหวัดเชียงใหม่", "Chiang Mai Legal Execution Office", "清迈府执行办公室"),
+    "สำนักงานบังคับคดีจังหวัดนนทบุรี" to LocalizedName("สำนักงานบังคับคดีจังหวัดนนทบุรี", "Nonthaburi Legal Execution Office", "暖武里府执行办公室"),
+    "สำนักงานบังคับคดีจังหวัดขอนแก่น" to LocalizedName("สำนักงานบังคับคดีจังหวัดขอนแก่น", "Khon Kaen Legal Execution Office", "孔敬府执行办公室")
+)
+
+private fun localizeValue(language: Language, value: String): String {
+    localizedValues[value]?.let { return it.localized(language) }
+    if (language == Language.TH) return value
+    val months = if (language == Language.EN) {
+        mapOf("ม.ค." to "Jan", "ก.พ." to "Feb", "มี.ค." to "Mar", "เม.ย." to "Apr", "พ.ค." to "May", "มิ.ย." to "Jun", "ก.ค." to "Jul", "ส.ค." to "Aug", "ก.ย." to "Sep", "ต.ค." to "Oct", "พ.ย." to "Nov", "ธ.ค." to "Dec")
+    } else {
+        mapOf("ม.ค." to "1月", "ก.พ." to "2月", "มี.ค." to "3月", "เม.ย." to "4月", "พ.ค." to "5月", "มิ.ย." to "6月", "ก.ค." to "7月", "ส.ค." to "8月", "ก.ย." to "9月", "ต.ค." to "10月", "พ.ย." to "11月", "ธ.ค." to "12月")
+    }
+    return months.entries.fold(value) { result, (th, translated) -> result.replace(th, translated) }
 }
 
 private fun tx(l: Language, th: String, en: String, zh: String) = when (l) { Language.TH -> th; Language.EN -> en; Language.ZH -> zh }
