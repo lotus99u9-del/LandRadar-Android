@@ -14,7 +14,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.5.0"
-        buildConfigField("String", "LANDRADAR_API_BASE_URL", "\\\"\\\"")
+        buildConfigField("String", "LANDRADAR_API_BASE_URL", "\"\"")
     }
 
     buildFeatures {
