@@ -158,6 +158,11 @@ private fun LandRadarHome() {
                 language = language,
                 query = query,
                 onQuery = { query = it },
+                provinces = administrativeAreas,
+                provinceCode = provinceCode,
+                onProvince = { provinceCode = it; districtCode = null; subdistrictCode = null },
+                maxPrice = maxPrice,
+                onMaxPrice = { maxPrice = it },
                 properties = filtered,
                 savedIds = savedIds,
                 markerTypes = markerTypes,
@@ -226,6 +231,11 @@ private fun SearchScreen(
     language: Language,
     query: String,
     onQuery: (String) -> Unit,
+    provinces: List<ProvinceOption>,
+    provinceCode: String?,
+    onProvince: (String?) -> Unit,
+    maxPrice: String,
+    onMaxPrice: (String) -> Unit,
     properties: List<Property>,
     savedIds: Set<String>,
     markerTypes: Set<MarkerType>,
@@ -250,6 +260,32 @@ private fun SearchScreen(
                 singleLine = true, shape = MaterialTheme.shapes.large, modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(10.dp))
+            Text(tx(language, "จังหวัด", "Province", "府/省"), style = MaterialTheme.typography.labelLarge)
+            AreaSelector(
+                label = tx(language, "ทุกจังหวัด", "All provinces", "全部府/省"),
+                selected = provinces.find { it.code == provinceCode }?.name?.localized(language),
+                options = provinces.map { it.code to it.name.localized(language) },
+                onSelect = onProvince
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(tx(language, "ราคาไม่เกิน", "Maximum price", "最高价格"), style = MaterialTheme.typography.labelLarge)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(
+                    listOf(
+                        tx(language, "ทั้งหมด", "All", "全部") to "",
+                        tx(language, "1.5 ล้าน", "1.5M", "150万") to "1500000",
+                        tx(language, "2 ล้าน", "2M", "200万") to "2000000",
+                        tx(language, "3 ล้าน", "3M", "300万") to "3000000"
+                    )
+                ) { (label, value) ->
+                    FilterChip(
+                        selected = maxPrice == value,
+                        onClick = { onMaxPrice(value) },
+                        label = { Text(label) }
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(MarkerType.entries) { type ->
                     val selected = type in markerTypes
