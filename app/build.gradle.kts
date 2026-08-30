@@ -13,10 +13,14 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.5.0"
+        buildConfigField("String", "LANDRADAR_API_BASE_URL", "\\\"\\\"")
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 
     buildTypes {
         release {
@@ -45,5 +49,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
