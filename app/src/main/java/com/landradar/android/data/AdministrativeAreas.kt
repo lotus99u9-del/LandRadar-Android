@@ -2,7 +2,6 @@ package com.landradar.android.data
 
 import android.content.Context
 import org.json.JSONArray
-import java.util.zip.GZIPInputStream
 
 data class LocalizedName(
     val th: String,
@@ -31,8 +30,9 @@ data class ProvinceOption(
  */
 object AdministrativeAreas {
     fun load(context: Context): List<ProvinceOption> {
+        // Android packaging expands .json.gz assets and exposes this as .json.
         val rows = JSONArray(
-            GZIPInputStream(context.assets.open("thailand_geography.json.gz"))
+            context.assets.open("thailand_geography.json")
                 .bufferedReader()
                 .use { it.readText() }
         )
