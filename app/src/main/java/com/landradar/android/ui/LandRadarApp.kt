@@ -277,7 +277,7 @@ private fun DetailScreen(
                 DetailLine("อำเภอ/เขต", property.district)
                 DetailLine("จังหวัด", property.province)
                 DetailLine("เอกสารสิทธิ์", property.titleDeedNumber)
-                DetailLine("พิกัด", property.latitude + ", " + property.longitude)
+                DetailLine("พิกัด", property.latitude.toString() + ", " + property.longitude.toString())
             }
             Spacer(Modifier.height(12.dp))
             DetailSection("การขายทอดตลาด") {
