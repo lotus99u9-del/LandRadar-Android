@@ -31,5 +31,6 @@ data class Property(
     val auctionRound: String = "ยังไม่ระบุ",
     val legalExecutionOffice: String = "ยังไม่ระบุ",
     val status: String = "รอตรวจสอบ",
-    val updatedAt: String = "ยังไม่ระบุ"
+    val updatedAt: String = "ยังไม่ระบุ",
+    val markerType: MarkerType = MarkerType.LEGAL_EXECUTION
 )
