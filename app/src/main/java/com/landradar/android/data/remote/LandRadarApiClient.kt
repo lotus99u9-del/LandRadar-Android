@@ -52,7 +52,18 @@ class LandRadarApiClient(
                         areaRai = item.getDouble("areaRai"),
                         auctionDate = item.getString("auctionDate"),
                         latitude = item.getDouble("latitude"),
-                        longitude = item.getDouble("longitude")
+                        longitude = item.getDouble("longitude"),
+                        caseNumber = item.optString("caseNumber", "ยังไม่ระบุ"),
+                        assetSequence = item.optString("assetSequence", "ยังไม่ระบุ"),
+                        assetType = item.optString("assetType", "ยังไม่ระบุ"),
+                        address = item.optString("address", "ยังไม่ระบุ"),
+                        subdistrict = item.optString("subdistrict", "ยังไม่ระบุ"),
+                        titleDeedNumber = item.optString("titleDeedNumber", "ยังไม่ระบุ"),
+                        appraisalPriceBaht = if (item.has("appraisalPriceBaht") && !item.isNull("appraisalPriceBaht")) item.getLong("appraisalPriceBaht") else null,
+                        auctionRound = item.optString("auctionRound", "ยังไม่ระบุ"),
+                        legalExecutionOffice = item.optString("legalExecutionOffice", "ยังไม่ระบุ"),
+                        status = item.optString("status", "รอตรวจสอบ"),
+                        updatedAt = item.optString("updatedAt", "ยังไม่ระบุ")
                     )
                 )
             }

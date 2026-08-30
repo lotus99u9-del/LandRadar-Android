@@ -242,25 +242,75 @@ private fun DetailScreen(
             PropertyMap(
                 properties = listOf(property),
                 onPropertyClick = {},
-                modifier = Modifier.fillMaxWidth().height(240.dp)
+                modifier = Modifier.fillMaxWidth().height(220.dp)
             )
             Spacer(Modifier.height(16.dp))
-            Text(property.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(property.district + ", " + property.province)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(property.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(property.subdistrict + " • " + property.district + " • " + property.province)
+                }
+                AssistChip(onClick = {}, label = { Text(property.status) })
+            }
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
-            DetailLine("รหัสทรัพย์", property.id)
-            DetailLine("ราคาตั้งต้น", money(property.priceBaht) + " บาท")
-            DetailLine("ขนาด", property.areaRai.toString() + " ไร่")
-            DetailLine("วันขายทอดตลาด", property.auctionDate)
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("ราคาตั้งขาย", style = MaterialTheme.typography.labelLarge)
+                    Text(money(property.priceBaht) + " บาท", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    property.appraisalPriceBaht?.let {
+                        Text("ราคาประเมิน " + money(it) + " บาท")
+                    }
+                    Text("เนื้อที่ " + property.areaRai + " ไร่")
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            DetailSection("ข้อมูลคดีและทรัพย์") {
+                DetailLine("รหัสทรัพย์", property.id)
+                DetailLine("เลขคดี", property.caseNumber)
+                DetailLine("ลำดับทรัพย์", property.assetSequence)
+                DetailLine("ประเภททรัพย์", property.assetType)
+            }
+            Spacer(Modifier.height(12.dp))
+            DetailSection("ที่ตั้งและเอกสารสิทธิ์") {
+                DetailLine("ที่อยู่", property.address)
+                DetailLine("ตำบล/แขวง", property.subdistrict)
+                DetailLine("อำเภอ/เขต", property.district)
+                DetailLine("จังหวัด", property.province)
+                DetailLine("เอกสารสิทธิ์", property.titleDeedNumber)
+                DetailLine("พิกัด", property.latitude + ", " + property.longitude)
+            }
+            Spacer(Modifier.height(12.dp))
+            DetailSection("การขายทอดตลาด") {
+                DetailLine("รอบขาย", property.auctionRound)
+                DetailLine("วันขาย", property.auctionDate)
+                DetailLine("สำนักงาน", property.legalExecutionOffice)
+                DetailLine("อัปเดตล่าสุด", property.updatedAt)
+            }
             Spacer(Modifier.height(18.dp))
             Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                Text(if (saved) "★ บันทึกแล้ว" else "☆ บันทึกทรัพย์นี้")
+                Text(if (saved) "★ บันทึกและติดตามแล้ว" else "☆ บันทึกและติดตามทรัพย์")
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                Text("ดูข้อมูลเชิงลึกบนเว็บไซต์หลัก")
+                Text("ดูการวิเคราะห์เชิงลึกบนเว็บไซต์หลัก")
             }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "ข้อมูลในรุ่นทดสอบใช้เพื่อแสดงรูปแบบหน้าจอ โปรดตรวจสอบกับประกาศต้นทางก่อนตัดสินใจ",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    ElevatedCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            content()
         }
     }
 }
