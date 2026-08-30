@@ -20,6 +20,7 @@ import com.landradar.android.data.MarkerType
 import com.landradar.android.data.Property
 import com.landradar.android.data.AdministrativeAreas
 import com.landradar.android.data.LocalizedName
+import com.landradar.android.data.ProvinceOption
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -53,6 +54,7 @@ fun LandRadarApp() {
 private fun LandRadarHome() {
     val context = LocalContext.current
     val repository = remember { LocalPropertyRepository(context) }
+    val administrativeAreas = remember { AdministrativeAreas.load(context) }
     var language by rememberSaveable { mutableStateOf(Language.TH) }
     var tab by rememberSaveable { mutableStateOf(Tab.SEARCH) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -73,7 +75,7 @@ private fun LandRadarHome() {
     var savedVersion by remember { mutableIntStateOf(0) }
 
     val savedIds = remember(savedVersion) { repository.savedIds() }
-    val selectedProvince = AdministrativeAreas.provinces.find { it.code == provinceCode }
+    val selectedProvince = administrativeAreas.find { it.code == provinceCode }
     val selectedDistrict = selectedProvince?.districts?.find { it.code == districtCode }
     val selectedSubdistrict = selectedDistrict?.subdistricts?.find { it.code == subdistrictCode }
     val all = repository.search(query)
@@ -175,6 +177,7 @@ private fun LandRadarHome() {
     if (showFilters) {
         FilterDialog(
             language = language,
+            provinces = administrativeAreas,
             provinceCode = provinceCode,
             onProvince = { provinceCode = it; districtCode = null; subdistrictCode = null },
             districtCode = districtCode,
@@ -292,6 +295,7 @@ private fun SearchScreen(
 @Composable
 private fun FilterDialog(
     language: Language,
+    provinces: List<ProvinceOption>,
     provinceCode: String?, onProvince: (String?) -> Unit,
     districtCode: String?, onDistrict: (String?) -> Unit,
     subdistrictCode: String?, onSubdistrict: (String?) -> Unit,
@@ -322,12 +326,12 @@ private fun FilterDialog(
                 }
             }
             item {
-                val province = AdministrativeAreas.provinces.find { it.code == provinceCode }
+                val province = provinces.find { it.code == provinceCode }
                 val district = province?.districts?.find { it.code == districtCode }
                 AreaSelector(
                     label = tx(language, "จังหวัด", "Province", "府/省"),
                     selected = province?.name?.localized(language),
-                    options = AdministrativeAreas.provinces.map { it.code to it.name.localized(language) },
+                    options = provinces.map { it.code to it.name.localized(language) },
                     onSelect = onProvince
                 )
                 Spacer(Modifier.height(8.dp))
