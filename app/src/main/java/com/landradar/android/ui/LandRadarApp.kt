@@ -23,7 +23,6 @@ import com.landradar.android.data.LocalizedName
 import com.landradar.android.data.ProvinceOption
 import java.text.NumberFormat
 import java.util.Locale
-import kotlin.math.pow
 
 private val Colors = lightColorScheme(
     primary = Color(0xFF006B3C),
@@ -41,8 +40,7 @@ private enum class Language { TH, EN, ZH }
 private enum class Tab { SEARCH, SAVED, ALERTS, ACCOUNT }
 private enum class AssetFilter { ALL, LAND, HOUSE, COMMERCIAL, CONDO }
 private enum class StatusFilter { ALL, OPEN, EXPIRING, CLOSED }
-private enum class DiscountFilter(val minimumPercent: Int) { ALL(0), TEN(10), TWENTY(20), THIRTY(30) }
-private enum class SortMode { LATEST, PRICE_LOW, PRICE_HIGH, DISCOUNT_HIGH, AUCTION_SOON }
+private enum class SortMode { LATEST, PRICE_LOW, PRICE_HIGH, AUCTION_SOON }
 
 @Composable
 fun LandRadarApp() {
@@ -70,7 +68,6 @@ private fun LandRadarHome() {
     var auctionDate by rememberSaveable { mutableStateOf("") }
     var assetFilter by rememberSaveable { mutableStateOf(AssetFilter.ALL) }
     var statusFilter by rememberSaveable { mutableStateOf(StatusFilter.ALL) }
-    var discountFilter by rememberSaveable { mutableStateOf(DiscountFilter.ALL) }
     var sortMode by rememberSaveable { mutableStateOf(SortMode.LATEST) }
     var markerTypes by remember { mutableStateOf(MarkerType.entries.toSet()) }
     var showFilters by remember { mutableStateOf(false) }
@@ -94,7 +91,6 @@ private fun LandRadarHome() {
         .filter { auctionDate.isBlank() || it.auctionDate.contains(auctionDate, true) }
         .filter { assetMatches(it, assetFilter) }
         .filter { statusMatches(it, statusFilter) }
-        .filter { discountPercent(it) >= discountFilter.minimumPercent }
         .filter { tab != Tab.SAVED || it.id in savedIds }
         .toList()
         .let { list ->
@@ -102,7 +98,6 @@ private fun LandRadarHome() {
                 SortMode.LATEST -> list.sortedByDescending { it.updatedAt }
                 SortMode.PRICE_LOW -> list.sortedBy { it.priceBaht }
                 SortMode.PRICE_HIGH -> list.sortedByDescending { it.priceBaht }
-                SortMode.DISCOUNT_HIGH -> list.sortedByDescending(::discountPercent)
                 SortMode.AUCTION_SOON -> list.sortedBy { it.auctionDate }
             }
         }
@@ -112,7 +107,6 @@ private fun LandRadarHome() {
         minPrice = ""; maxPrice = ""
         minArea = ""; maxArea = ""; auctionDate = ""
         assetFilter = AssetFilter.ALL; statusFilter = StatusFilter.ALL
-        discountFilter = DiscountFilter.ALL
         sortMode = SortMode.LATEST; markerTypes = MarkerType.entries.toSet()
     }
 
@@ -202,7 +196,6 @@ private fun LandRadarHome() {
             auctionDate = auctionDate, onAuctionDate = { auctionDate = it },
             assetFilter = assetFilter, onAssetFilter = { assetFilter = it },
             statusFilter = statusFilter, onStatusFilter = { statusFilter = it },
-            discountFilter = discountFilter, onDiscountFilter = { discountFilter = it },
             sortMode = sortMode, onSortMode = { sortMode = it },
             onClear = { clearFilters() },
             onDismiss = { showFilters = false }
@@ -352,7 +345,6 @@ private fun FilterDialog(
     auctionDate: String, onAuctionDate: (String) -> Unit,
     assetFilter: AssetFilter, onAssetFilter: (AssetFilter) -> Unit,
     statusFilter: StatusFilter, onStatusFilter: (StatusFilter) -> Unit,
-    discountFilter: DiscountFilter, onDiscountFilter: (DiscountFilter) -> Unit,
     sortMode: SortMode, onSortMode: (SortMode) -> Unit,
     onClear: () -> Unit,
     onDismiss: () -> Unit
@@ -424,23 +416,6 @@ private fun FilterDialog(
                 }
             }
             item {
-                Text(tx(language, "ต่ำกว่าราคาประเมินอย่างน้อย", "Minimum below appraisal", "至少低于评估价"), fontWeight = FontWeight.Bold)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(DiscountFilter.entries) { value ->
-                        FilterChip(
-                            selected = discountFilter == value,
-                            onClick = { onDiscountFilter(value) },
-                            label = {
-                                Text(
-                                    if (value == DiscountFilter.ALL) tx(language, "ทั้งหมด", "All", "全部")
-                                    else "${value.minimumPercent}%+"
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-            item {
                 Text(tx(language, "เรียงลำดับ", "Sort by", "排序方式"), fontWeight = FontWeight.Bold)
                 SortMode.entries.forEach { value ->
                     Row(Modifier.fillMaxWidth().clickable { onSortMode(value) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -498,19 +473,6 @@ private fun DetailScreen(property: Property, saved: Boolean, language: Language,
                 DetailLine(tx(language, "เนื้อที่", "Area", "面积"), property.areaRai.toString() + " " + tx(language, "ไร่", "rai", "莱"))
             }
             Spacer(Modifier.height(10.dp))
-            DetailSection(tx(language, "กล่องข้อมูลวิเคราะห์ทรัพย์", "Property Intelligence Box", "房产智能信息框")) {
-                ModuleStatusLine(tx(language, "ข้อมูลทรัพย์หลัก", "Core property data", "核心房产数据"), tx(language, "ข้อมูลตัวอย่างในเครื่อง", "Local prototype data", "本地原型数据"), true)
-                ModuleStatusLine(tx(language, "กรมที่ดิน / รูปแปลง", "Land parcel", "地块信息"), tx(language, "ยังไม่ได้เชื่อมต่อ", "Not connected", "尚未连接"), false)
-                ModuleStatusLine(tx(language, "ผังเมืองและข้อกำหนด", "Planning & buildability", "规划与建设条件"), tx(language, "ยังไม่สามารถตรวจสอบได้", "Currently unavailable", "目前无法核验"), false)
-                ModuleStatusLine(tx(language, "ความเสี่ยงน้ำท่วม", "Flood risk", "洪水风险"), tx(language, "ยังไม่สามารถตรวจสอบได้", "Currently unavailable", "目前无法核验"), false)
-                ModuleStatusLine(tx(language, "เวนคืนและคมนาคม", "Expropriation & transport", "征收与交通"), tx(language, "ยังไม่สามารถตรวจสอบได้", "Currently unavailable", "目前无法核验"), false)
-                Text(
-                    tx(language, "ส่วนเสริมที่ยังไม่เชื่อมต่อจะไม่ถูกตีความว่า ‘ไม่มีความเสี่ยง’", "Unavailable modules are never interpreted as ‘no risk’.", "未连接的模块不会被解释为“无风险”。"),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(Modifier.height(10.dp))
             DetailSection(tx(language, "ข้อมูลคดีและทรัพย์", "Case and property", "案件与房产")) {
                 DetailLine(tx(language, "เลขคดี", "Case number", "案件编号"), property.caseNumber)
                 DetailLine(tx(language, "ลำดับทรัพย์", "Asset sequence", "资产序号"), localizeValue(language, property.assetSequence))
@@ -525,20 +487,6 @@ private fun DetailScreen(property: Property, saved: Boolean, language: Language,
                 DetailLine(tx(language, "อัปเดต", "Updated", "更新时间"), localizeValue(language, property.updatedAt))
             }
             Spacer(Modifier.height(10.dp))
-            DetailSection(tx(language, "ประมาณค่างวด", "Estimated instalments", "月供估算")) {
-                listOf(120, 240, 360).forEach { months ->
-                    DetailLine(
-                        tx(language, "${months / 12} ปี", "${months / 12} years", "${months / 12}年"),
-                        money(estimatedMonthlyPayment(property.priceBaht, 6.5, months)) + " " + tx(language, "บาท/เดือน", "THB/month", "泰铢/月")
-                    )
-                }
-                Text(
-                    tx(language, "คำนวณจากดอกเบี้ยอ้างอิง 6.5% เป็นการประมาณเบื้องต้น ไม่ใช่ข้อเสนอสินเชื่อหรือผลอนุมัติจากธนาคาร", "Calculated at a 6.5% reference rate. This is an estimate, not a loan offer or bank approval.", "按6.5%参考利率估算，不构成贷款要约或银行审批结果。"),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(Modifier.height(10.dp))
             DetailSection(tx(language, "แหล่งข้อมูล", "Data source", "数据来源")) {
                 DetailLine(tx(language, "สถานะ", "Status", "状态"), tx(language, "ข้อมูลตัวอย่างสำหรับทดสอบหน้าจอ", "Prototype data for UI testing", "用于界面测试的原型数据"))
                 DetailLine(tx(language, "แหล่งต้นทาง", "Source", "来源"), tx(language, "ยังไม่ได้เชื่อมต่อ LED API", "LED API not connected", "尚未连接 LED API"))
@@ -548,9 +496,27 @@ private fun DetailScreen(property: Property, saved: Boolean, language: Language,
             Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text(if (saved) "★ " + tx(language, "บันทึกแล้ว", "Saved", "已收藏") else "☆ " + tx(language, "บันทึกและติดตาม", "Save and track", "收藏并追踪"))
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                Text(tx(language, "เว็บไซต์ฉบับเต็มกำลังเชื่อมต่อ", "Full website connection pending", "完整版网站正在连接"))
+            Spacer(Modifier.height(10.dp))
+            DetailSection(tx(language, "วิเคราะห์ต่อบนเว็บไซต์", "Continue analysis on website", "在网站继续分析")) {
+                Text(
+                    tx(
+                        language,
+                        "เว็บไซต์จะแสดงแผนที่ขนาดใหญ่ รูปแปลง ราคาประเมินย้อนหลัง ผังเมือง น้ำท่วม เวนคืน คมนาคม Nearby ค่างวด และรายงานฉบับเต็ม",
+                        "The website will provide a large map, parcel boundaries, valuation history, planning, flood, expropriation, transport, nearby places, finance estimates and the full report.",
+                        "网站将提供大地图、地块边界、历史估值、规划、洪水、征收、交通、周边设施、贷款估算和完整报告。"
+                    ),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    tx(language, "มือถือแสดงเฉพาะข้อมูลย่อเพื่อให้แอปทำงานเบา", "Mobile shows a concise summary to keep the app lightweight.", "移动端仅显示摘要，以保持应用轻量。"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                    Text(tx(language, "ดูรายละเอียดบนเว็บไซต์ (รอเชื่อมต่อ)", "View on website (connection pending)", "在网站查看（待连接）"))
+                }
             }
         }
     }
@@ -571,18 +537,6 @@ private fun DetailLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
         Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun ModuleStatusLine(label: String, value: String, available: Boolean) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(if (available) "●" else "○", color = if (available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(8.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, fontWeight = FontWeight.SemiBold)
-            Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }
 
@@ -687,7 +641,6 @@ private fun sortLabel(l: Language, v: SortMode) = when (v) {
     SortMode.LATEST -> tx(l, "อัปเดตล่าสุด", "Latest", "最新")
     SortMode.PRICE_LOW -> tx(l, "ราคาต่ำสุด", "Lowest price", "价格最低")
     SortMode.PRICE_HIGH -> tx(l, "ราคาสูงสุด", "Highest price", "价格最高")
-    SortMode.DISCOUNT_HIGH -> tx(l, "ส่วนลดจากราคาประเมินมากสุด", "Largest appraisal discount", "评估价折扣最高")
     SortMode.AUCTION_SOON -> tx(l, "ใกล้ขายที่สุด", "Auction soonest", "最近拍卖")
 }
 
@@ -774,12 +727,6 @@ private fun discountPercent(property: Property): Int {
     val appraisal = property.appraisalPriceBaht ?: return 0
     if (appraisal <= 0L || property.priceBaht >= appraisal) return 0
     return (((appraisal - property.priceBaht) * 100.0) / appraisal).toInt()
-}
-private fun estimatedMonthlyPayment(principal: Long, annualRatePercent: Double, months: Int): Long {
-    if (principal <= 0 || months <= 0) return 0
-    val monthlyRate = annualRatePercent / 100.0 / 12.0
-    val factor = (1.0 + monthlyRate).pow(months.toDouble())
-    return (principal * monthlyRate * factor / (factor - 1.0)).toLong()
 }
 private fun digits(value: String) = value.filter(Char::isDigit)
 private fun decimal(value: String) = value.filter { it.isDigit() || it == '.' }.let { if (it.count { c -> c == '.' } <= 1) it else it.dropLast(1) }
